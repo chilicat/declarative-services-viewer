@@ -1,5 +1,6 @@
 package net.chilicat.ds.intellij.ui;
 
+import com.intellij.ide.actions.CloseTabToolbarAction;
 import com.intellij.openapi.Disposable;
 import com.intellij.openapi.actionSystem.ActionManager;
 import com.intellij.openapi.actionSystem.AnAction;
@@ -8,9 +9,12 @@ import com.intellij.openapi.actionSystem.DefaultActionGroup;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.SimpleToolWindowPanel;
 import com.intellij.openapi.ui.Splitter;
+import com.intellij.openapi.util.IconLoader;
 import com.intellij.openapi.wm.ToolWindow;
 import com.intellij.openapi.wm.ToolWindowManager;
 import com.intellij.ui.ScrollPaneFactory;
+import com.intellij.ui.treeStructure.actions.CollapseAllAction;
+import com.intellij.ui.treeStructure.actions.ExpandAllAction;
 import com.intellij.util.PlatformIcons;
 import net.chilicat.ds.intellij.OpenServiceViewerAction;
 import net.chilicat.ds.intellij.ResolveFelixSCRComponents;
@@ -21,10 +25,12 @@ import org.jetbrains.annotations.Nullable;
 import javax.swing.*;
 import javax.swing.event.TreeSelectionEvent;
 import javax.swing.event.TreeSelectionListener;
-import javax.swing.plaf.basic.BasicBorders;
 import javax.swing.tree.DefaultMutableTreeNode;
 import javax.swing.tree.DefaultTreeModel;
 import java.awt.*;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.Map;
 
 import static javax.swing.SwingUtilities.invokeLater;
 
@@ -34,8 +40,8 @@ import static javax.swing.SwingUtilities.invokeLater;
 public class ServiceTreePanel extends SimpleToolWindowPanel {
 
     private ServiceTree mainTree;
-    private ServiceTree servicesTree;
-    private ServiceTree referencesTree;
+
+    private ServiceTree refAndServicesTree;
 
     private Project project;
     private Disposable disposer = new MyDisposable();
@@ -46,18 +52,15 @@ public class ServiceTreePanel extends SimpleToolWindowPanel {
 
         Splitter content = new Splitter(false, 0.5f);
 
-
-        JPanel consumesProvidesPanel = new JPanel(new GridLayout(2, 1));
-        consumesProvidesPanel.add(initServicesTree());
-        consumesProvidesPanel.add(initReferencesTree());
-
         content.setFirstComponent(initTree());
-        content.setSecondComponent(consumesProvidesPanel);
-
+        content.setSecondComponent(initReferencesTree());
 
         setContent(content);
 
         initToolbar();
+
+        loadReferencesAndServices(null);
+
     }
 
     private JScrollPane initTree() {
@@ -67,11 +70,10 @@ public class ServiceTreePanel extends SimpleToolWindowPanel {
                 DSTreeNode<?> node = UiUtils.asDSTreeNode(treeSelectionEvent.getNewLeadSelectionPath());
                 if (node instanceof ServiceComponentTreeNode) {
                     ServiceComponentTreeNode scNode = (ServiceComponentTreeNode) node;
-                    loadServices(scNode);
-                    loadReferences(scNode);
+                    loadReferencesAndServices(scNode);
+
                 } else {
-                    loadServices(null);
-                    loadReferences(null);
+                    loadReferencesAndServices(null);
                 }
 
             }
@@ -81,45 +83,53 @@ public class ServiceTreePanel extends SimpleToolWindowPanel {
         return ScrollPaneFactory.createScrollPane(mainTree);
     }
 
-    private void loadReferences(@Nullable ServiceComponentTreeNode scNode) {
+    private void loadReferencesAndServices(@Nullable ServiceComponentTreeNode scNode) {
         if (scNode == null) {
-            referencesTree.setModel(new DefaultTreeModel(new DefaultMutableTreeNode()));
+            refAndServicesTree.setModel(new DefaultTreeModel(new DefaultMutableTreeNode()));
         } else {
             ServiceComponent userObject = scNode.getUserObject();
-            DefaultMutableTreeNode referenceRoot = new DefaultMutableTreeNode();
+
+            SimpleDSTreeNode referenceRoot  = new SimpleDSTreeNode(scNode.getProject(), "References");
+            referenceRoot.setIcon(IconLoader.getIcon("/vcs/arrow_left.png"));
             for (Reference ref : userObject.getReferences()) {
                 referenceRoot.add(new ReferenceTreeNode(scNode.getProject(), ref));
             }
-            referencesTree.setModel(new DefaultTreeModel(referenceRoot));
-        }
-    }
+            referenceRoot.sort(new DisplayNameSorter());
 
-    private void loadServices(@Nullable ServiceComponentTreeNode scNode) {
-        if (scNode == null) {
-            servicesTree.setModel(new DefaultTreeModel(new DefaultMutableTreeNode()));
-        } else {
-            ServiceComponent userObject = scNode.getUserObject();
-            DefaultMutableTreeNode serviceRoot = new DefaultMutableTreeNode();
+            SimpleDSTreeNode serviceRoot = new SimpleDSTreeNode(scNode.getProject(), "Services");
+            serviceRoot.setIcon(IconLoader.getIcon("/vcs/arrow_right.png"));
             for (String service : userObject.getServices()) {
                 SimpleDSTreeNode simpleDSTreeNode = new SimpleDSTreeNode(scNode.getProject(), service);
                 serviceRoot.add(simpleDSTreeNode);
             }
-            servicesTree.setModel(new DefaultTreeModel(serviceRoot));
+            serviceRoot.sort(new DisplayNameSorter());
+
+            DefaultMutableTreeNode root = new DefaultMutableTreeNode();
+            if(serviceRoot.getChildCount() > 0) {
+                root.add(serviceRoot);
+            }
+            
+            if(referenceRoot.getChildCount() > 0) {
+                root.add(referenceRoot);
+            }
+
+            if(root.getChildCount() == 0) {
+                root.add(new DefaultMutableTreeNode("No services or references provided"));
+            }
+
+            refAndServicesTree.setModel(new DefaultTreeModel(root));
+
+            for(int i=0; i<refAndServicesTree.getRowCount(); i++) {
+                refAndServicesTree.expandRow(i);
+            }
         }
     }
 
-    private JScrollPane initServicesTree() {
-        servicesTree = new ServiceTree();
-        ToolTipManager.sharedInstance().registerComponent(servicesTree);
-        loadServices(null);
-        return ScrollPaneFactory.createScrollPane(servicesTree);
-    }
-
     private JScrollPane initReferencesTree() {
-        referencesTree = new ServiceTree();
-        ToolTipManager.sharedInstance().registerComponent(referencesTree);
-        loadReferences(null);
-        return ScrollPaneFactory.createScrollPane(referencesTree);
+        refAndServicesTree = new ServiceTree();
+        ToolTipManager.sharedInstance().registerComponent(refAndServicesTree);
+
+        return ScrollPaneFactory.createScrollPane(refAndServicesTree);
     }
 
 
@@ -133,15 +143,20 @@ public class ServiceTreePanel extends SimpleToolWindowPanel {
                 resolveContent(project);
             }
         });
-        leftGroup.add(new AnAction("Close", "Close", PlatformIcons.DELETE_ICON) {
-            @Override
-            public void actionPerformed(AnActionEvent anActionEvent) {
+
+        leftGroup.add(new ExpandAllAction(mainTree));
+        leftGroup.add(new CollapseAllAction(mainTree));
+
+
+        leftGroup.add(new CloseTabToolbarAction() {
+            public void actionPerformed(AnActionEvent e) {
                 if (project != null && toolWindow != null) {
                     ToolWindowManager.getInstance(project).unregisterToolWindow(OpenServiceViewerAction.SERVICE_VIEWER_ID);
-                    //toolWindow.getContentManager().dispose();
+
                 }
             }
         });
+
         toolBarPanel.add(ActionManager.getInstance().createActionToolbar("DS", leftGroup, false).getComponent());
         setToolbar(toolBarPanel);
     }
@@ -155,14 +170,41 @@ public class ServiceTreePanel extends SimpleToolWindowPanel {
             resolver.resolveAsync(new ResolveFelixSCRComponents.Callback() {
                 public void resolved(java.util.List<ServiceComponent> components) {
 
-                    final DefaultMutableTreeNode root = new DefaultMutableTreeNode();
-                    for (ServiceComponent comp : components) {
-                        root.add(new ServiceComponentTreeNode(project, comp));
+                    final DSTreeNode root = new SimpleDSTreeNode(project, "ROOT");
+
+                    if(false) {
+                        for (ServiceComponent comp : components) {
+                            root.add(new ServiceComponentTreeNode(project, comp));
+                        }
+                    } else {
+                        Map<String, SimpleDSTreeNode> modules = new HashMap<String, SimpleDSTreeNode>();
+                        Icon moduleIcon = IconLoader.getIcon("/objectBrowser/showModules.png");
+                        for (ServiceComponent comp : components) {
+                            SimpleDSTreeNode r = modules.get(comp.getModuleName());
+                            if(r == null) {
+                                r = new SimpleDSTreeNode(project, comp.getModuleName());
+                                r.setClassProvider(false);
+                                r.setIcon(moduleIcon); // PlatformIcons.PROJECT_ICON
+                                modules.put(comp.getModuleName(), r);
+                            }
+                            r.add(new ServiceComponentTreeNode(project, comp));
+                        }
+
+                        for(SimpleDSTreeNode r : modules.values()) {
+                            r.sort(new DisplayNameSorter());
+                            root.add(r);
+                        }
                     }
+
+                    root.sort(new DisplayNameSorter());
 
                     invokeLater(new Runnable() {
                         public void run() {
                             model.setRoot(root);
+
+                            for(int i=0; i<mainTree.getRowCount(); i++) {
+                                mainTree.expandRow(i);
+                            }
                         }
                     });
 
@@ -187,11 +229,16 @@ public class ServiceTreePanel extends SimpleToolWindowPanel {
         this.toolWindow = toolWindow;
     }
 
+    private static class DisplayNameSorter implements Comparator<DSTreeNode> {
+        public int compare(DSTreeNode o, DSTreeNode o1) {
+            return o.getDisplayValue().compareTo(o1.getDisplayValue());
+        }
+    }
+
     private class MyDisposable implements Disposable {
         public void dispose() {
             ToolTipManager.sharedInstance().unregisterComponent(mainTree);
-            ToolTipManager.sharedInstance().unregisterComponent(servicesTree);
-            ToolTipManager.sharedInstance().unregisterComponent(referencesTree);
+            ToolTipManager.sharedInstance().unregisterComponent(refAndServicesTree);
         }
     }
 }

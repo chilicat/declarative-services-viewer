@@ -6,6 +6,7 @@ import com.intellij.openapi.project.Project;
 import com.intellij.openapi.util.Computable;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.psi.*;
+import com.intellij.psi.util.PsiTypesUtil;
 import net.chilicat.ds.intellij.model.ServiceComponent;
 import net.chilicat.ds.intellij.model.ServiceComponentImpl;
 import net.chilicat.ds.intellij.model.ReferenceImpl;
@@ -88,14 +89,42 @@ public class ResolveFelixSCRComponents {
         PsiModifierList modifierList = field.getModifierList();
         if (modifierList != null) {
             for (PsiAnnotation annotation : modifierList.getAnnotations()) {
-                if (isReference(annotation)) {
-                    AnnotationWrapper wrapper = new AnnotationWrapper(annotation);
-                    String name = wrapper.getString("name", null);
-                    String iface = wrapper.getClassAsString("referenceInterface");
-                    component.addReference(new ReferenceImpl(name, iface));
+                ReferenceImpl reference = toReference(annotation);
+                if (reference != null) {
+                    component.addReference(reference);
                 }
             }
         }
+    }
+
+    private ReferenceImpl toReference(PsiAnnotation annotation) {
+        if (!isReference(annotation)) {
+            return null;
+        }
+
+        AnnotationWrapper wrapper = new AnnotationWrapper(annotation);
+        String name = wrapper.getString("name", null);
+        String iface = wrapper.getClassAsString("referenceInterface");
+        if (iface == null) {
+            if (annotation.getParent() != null) {
+                PsiElement parent = annotation.getParent().getParent();
+                if (parent != null) {
+                    for (PsiElement child : parent.getChildren()) {
+                        if (child instanceof PsiTypeElement) {
+                            PsiType type = ((PsiTypeElement) child).getType();
+                            PsiClass psiClass = PsiTypesUtil.getPsiClass(type);
+                            // If fqn is not available than the class is not fully resolved.
+                            if (psiClass != null && psiClass.getQualifiedName() != null) {
+                                iface = psiClass.getQualifiedName();
+                            } else {
+                                iface = "<Cannot resolve reference interface>";
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        return new ReferenceImpl(name, iface);
     }
 
     private void visitClass(PsiClass cls, ServiceComponentImpl component) {
@@ -110,6 +139,15 @@ public class ResolveFelixSCRComponents {
                     for (String service : wrapper.getClassesAsString()) {
                         component.addService(service);
                     }
+                } else if (isReferences(annotation)) {
+                    final List<PsiAnnotation> children = new AnnotationWrapper(annotation).getAnnotations();
+                    for (PsiAnnotation child : children) {
+                        final ReferenceImpl ref = toReference(child);
+                        if (ref != null) {
+                            component.addReference(ref);
+                        }
+                    }
+
                 }
             }
         }

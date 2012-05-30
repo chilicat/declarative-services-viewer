@@ -25,8 +25,6 @@ public class OpenServiceViewerAction extends AnAction {
         ToolWindowManager windowManager = ToolWindowManager.getInstance(project);
         ToolWindow toolWindow = windowManager.getToolWindow(SERVICE_VIEWER_ID);
 
-
-
         ServiceTreePanel tree;
         if (toolWindow == null) {
             tree = new ServiceTreePanel();

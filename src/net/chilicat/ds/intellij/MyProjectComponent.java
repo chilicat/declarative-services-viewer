@@ -4,6 +4,8 @@ import com.intellij.openapi.components.ProjectComponent;
 import com.intellij.openapi.module.Module;
 import com.intellij.openapi.module.ModuleManager;
 import com.intellij.openapi.project.Project;
+import com.intellij.openapi.wm.ToolWindow;
+import com.intellij.openapi.wm.ToolWindowManager;
 import com.intellij.psi.PsiClass;
 import com.intellij.psi.PsiReference;
 import com.intellij.psi.search.PsiSearchHelper;
@@ -42,24 +44,12 @@ public class MyProjectComponent implements ProjectComponent {
 
     public void projectOpened() {
 
-
-
-
-
-//        SearchSession session = new SearchSession();
-//        SearchRequestCollector collector = new SearchRequestCollector(session);
-//
-//        PsiSearchHelper.SERVICE.getInstance(project).processRequests(collector, new Processor<PsiReference>() {
-//            public boolean process(PsiReference psiReference) {
-//                System.out.println(psiReference.toString());
-//                return false;  //To change body of implemented methods use File | Settings | File Templates.
-//            }
-//        });
-//
-        // called when project is opened
     }
 
     public void projectClosed() {
-        // called when project is being closed
+        /*ToolWindow toolWindow = ToolWindowManager.getInstance(project).getToolWindow(OpenServiceViewerAction.SERVICE_VIEWER_ID);
+        if(toolWindow != null) {
+            toolWindow.getContentManager().dispose();
+        } */
     }
 }

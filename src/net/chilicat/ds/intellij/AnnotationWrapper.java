@@ -82,5 +82,28 @@ public class AnnotationWrapper {
         return Collections.emptyList();
     }
 
-
+    /**
+     * Get classes from the default value which is either "@Annotation(value={VALUE,...})" or "@Annotation({VALUE,...})"
+     *
+     * @return the classes.
+     */
+    @NotNull
+    public List<PsiAnnotation> getAnnotations() {
+        for (String key : Arrays.asList(null, "value")) {
+            PsiNameValuePair pair = attributes.get(key);
+            if (pair != null) {
+                PsiAnnotationMemberValue value = pair.getValue();
+                if (value != null) {
+                    List<PsiAnnotation> res = new ArrayList<PsiAnnotation>();
+                    for (PsiElement child : value.getChildren()) {
+                        if (child instanceof PsiAnnotation) {
+                            res.add((PsiAnnotation) child);
+                        }
+                    }
+                    return res;
+                }
+            }
+        }
+        return Collections.emptyList();
+    }
 }

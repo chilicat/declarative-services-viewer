@@ -2,3 +2,4 @@
 out
 *.zip
 .idea/workspace.xml
+*.jar

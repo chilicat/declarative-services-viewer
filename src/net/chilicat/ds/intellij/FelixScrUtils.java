@@ -20,6 +20,7 @@ public final class FelixScrUtils {
     public final static String COMPONENT_CLASS = "org.apache.felix.scr.annotations.Component";
     public final static String REFERENCE_CLASS = "org.apache.felix.scr.annotations.Reference";
     public final static String SERVICE_CLASS = "org.apache.felix.scr.annotations.Service";
+    public final static String REFERENCES_CLASS = "org.apache.felix.scr.annotations.References";
 
     private FelixScrUtils() {
         // all methods static.
@@ -67,6 +68,15 @@ public final class FelixScrUtils {
         return isAnnotation(annotation, SERVICE_CLASS);
     }
 
+    /**
+     * Is given annotation a references annotation.
+     *
+     * @param annotation the annotation to check
+     * @return true in case it is a references annotation.
+     */
+    public static boolean isReferences(@NotNull PsiAnnotation annotation) {
+        return isAnnotation(annotation, REFERENCES_CLASS);
+    }
 
     /**
      * Is given annotation a component annotation.
