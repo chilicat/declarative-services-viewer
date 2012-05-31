@@ -16,8 +16,10 @@ import com.intellij.ui.ScrollPaneFactory;
 import com.intellij.ui.treeStructure.actions.CollapseAllAction;
 import com.intellij.ui.treeStructure.actions.ExpandAllAction;
 import com.intellij.util.PlatformIcons;
+import net.chilicat.ds.intellij.AbstractResolveComponents;
 import net.chilicat.ds.intellij.OpenServiceViewerAction;
 import net.chilicat.ds.intellij.ResolveFelixSCRComponents;
+import net.chilicat.ds.intellij.ResolveXMLComponents;
 import net.chilicat.ds.intellij.model.Reference;
 import net.chilicat.ds.intellij.model.ServiceComponent;
 import org.jetbrains.annotations.Nullable;
@@ -28,9 +30,9 @@ import javax.swing.event.TreeSelectionListener;
 import javax.swing.tree.DefaultMutableTreeNode;
 import javax.swing.tree.DefaultTreeModel;
 import java.awt.*;
-import java.util.Comparator;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
+import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static javax.swing.SwingUtilities.invokeLater;
 
@@ -46,6 +48,8 @@ public class ServiceTreePanel extends SimpleToolWindowPanel {
     private Project project;
     private Disposable disposer = new MyDisposable();
     private ToolWindow toolWindow;
+
+    private java.util.List<ServiceComponent> components;
 
     public ServiceTreePanel() {
         super(false, true);
@@ -104,6 +108,14 @@ public class ServiceTreePanel extends SimpleToolWindowPanel {
             }
             serviceRoot.sort(new DisplayNameSorter());
 
+
+            SimpleDSTreeNode usedByRoot = new SimpleDSTreeNode(scNode.getProject(), "Used By");
+            usedByRoot.setIcon(IconLoader.getIcon("/actions/previousOccurence.png"));
+            for(ServiceComponent comp : resolveUsedBy(userObject)) {
+                usedByRoot.add(new ServiceComponentTreeNode(project, comp));
+            }
+            usedByRoot.sort(new DisplayNameSorter());
+
             DefaultMutableTreeNode root = new DefaultMutableTreeNode();
             if(serviceRoot.getChildCount() > 0) {
                 root.add(serviceRoot);
@@ -111,6 +123,10 @@ public class ServiceTreePanel extends SimpleToolWindowPanel {
             
             if(referenceRoot.getChildCount() > 0) {
                 root.add(referenceRoot);
+            }
+
+            if(usedByRoot.getChildCount() > 0) {
+                root.add(usedByRoot);
             }
 
             if(root.getChildCount() == 0) {
@@ -123,6 +139,21 @@ public class ServiceTreePanel extends SimpleToolWindowPanel {
                 refAndServicesTree.expandRow(i);
             }
         }
+    }
+
+    private Set<ServiceComponent> resolveUsedBy(ServiceComponent userObject) {
+        final Set<ServiceComponent> result = new HashSet<ServiceComponent>();
+        for (String className : userObject.getServices()) {
+            for (ServiceComponent other : components) {
+                for (Reference ref : other.getReferences()) {
+                    if (className.equals(ref.getInterface())) {
+                        result.add(other);
+                    }
+                }
+            }
+        }
+
+        return result;
     }
 
     private JScrollPane initReferencesTree() {
@@ -167,49 +198,11 @@ public class ServiceTreePanel extends SimpleToolWindowPanel {
 
         if (project != null) {
             ResolveFelixSCRComponents resolver = new ResolveFelixSCRComponents(project);
-            resolver.resolveAsync(new ResolveFelixSCRComponents.Callback() {
-                public void resolved(java.util.List<ServiceComponent> components) {
+            ResolveXMLComponents resolveXMLComponents = new ResolveXMLComponents(project);
 
-                    final DSTreeNode root = new SimpleDSTreeNode(project, "ROOT");
-
-                    if(false) {
-                        for (ServiceComponent comp : components) {
-                            root.add(new ServiceComponentTreeNode(project, comp));
-                        }
-                    } else {
-                        Map<String, SimpleDSTreeNode> modules = new HashMap<String, SimpleDSTreeNode>();
-                        Icon moduleIcon = IconLoader.getIcon("/objectBrowser/showModules.png");
-                        for (ServiceComponent comp : components) {
-                            SimpleDSTreeNode r = modules.get(comp.getModuleName());
-                            if(r == null) {
-                                r = new SimpleDSTreeNode(project, comp.getModuleName());
-                                r.setClassProvider(false);
-                                r.setIcon(moduleIcon); // PlatformIcons.PROJECT_ICON
-                                modules.put(comp.getModuleName(), r);
-                            }
-                            r.add(new ServiceComponentTreeNode(project, comp));
-                        }
-
-                        for(SimpleDSTreeNode r : modules.values()) {
-                            r.sort(new DisplayNameSorter());
-                            root.add(r);
-                        }
-                    }
-
-                    root.sort(new DisplayNameSorter());
-
-                    invokeLater(new Runnable() {
-                        public void run() {
-                            model.setRoot(root);
-
-                            for(int i=0; i<mainTree.getRowCount(); i++) {
-                                mainTree.expandRow(i);
-                            }
-                        }
-                    });
-
-                }
-            });
+            MyResolveCallback callback = new MyResolveCallback(project, model);
+            resolver.resolveAsync(callback);
+            resolveXMLComponents.resolveAsync(callback);
         }
 
         mainTree.setModel(model);
@@ -239,6 +232,65 @@ public class ServiceTreePanel extends SimpleToolWindowPanel {
         public void dispose() {
             ToolTipManager.sharedInstance().unregisterComponent(mainTree);
             ToolTipManager.sharedInstance().unregisterComponent(refAndServicesTree);
+        }
+    }
+
+    private class MyResolveCallback implements ResolveFelixSCRComponents.ResolveCallback {
+        private final Project project;
+        private final DefaultTreeModel model;
+
+        private List<ServiceComponent> comps = Collections.synchronizedList(new ArrayList<ServiceComponent>());
+
+        public MyResolveCallback(Project project, DefaultTreeModel model) {
+            this.project = project;
+            this.model = model;
+        }
+
+        AtomicInteger count = new AtomicInteger(0);
+        public void resolved(final List<ServiceComponent> components) {
+            int count = this.count.incrementAndGet();
+            comps.addAll(components);
+
+            if(count == 2) {
+                final DSTreeNode root = new SimpleDSTreeNode(project, "ROOT");
+
+                if(false) {
+                    for (ServiceComponent comp : comps) {
+                        root.add(new ServiceComponentTreeNode(project, comp));
+                    }
+                } else {
+                    Map<String, SimpleDSTreeNode> modules = new HashMap<String, SimpleDSTreeNode>();
+                    Icon moduleIcon = IconLoader.getIcon("/objectBrowser/showModules.png");
+                    for (ServiceComponent comp : comps) {
+                        SimpleDSTreeNode r = modules.get(comp.getModuleName());
+                        if(r == null) {
+                            r = new SimpleDSTreeNode(project, comp.getModuleName());
+                            r.setClassProvider(false);
+                            r.setIcon(moduleIcon); // PlatformIcons.PROJECT_ICON
+                            modules.put(comp.getModuleName(), r);
+                        }
+                        r.add(new ServiceComponentTreeNode(project, comp));
+                    }
+
+                    for(SimpleDSTreeNode r : modules.values()) {
+                        r.sort(new DisplayNameSorter());
+                        root.add(r);
+                    }
+                }
+
+                root.sort(new DisplayNameSorter());
+
+                invokeLater(new Runnable() {
+                    public void run() {
+                        ServiceTreePanel.this.components = new ArrayList<ServiceComponent>(comps);
+                        model.setRoot(root);
+
+                        for(int i=0; i<mainTree.getRowCount(); i++) {
+                            mainTree.expandRow(i);
+                        }
+                    }
+                });
+            }
         }
     }
 }

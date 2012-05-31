@@ -10,15 +10,24 @@
         <html>
             <strong>OSGi Declarative Services Viewer</strong>
 
-            Recent changes:
-            <ul>
-                <li>Show module names</li>
-                <li>Correct close icon</li>
-                <li>Services/References are sorted by name</li>
-            </ul>
-
+             <p>
+            <strong>Recent changes:</strong>
+                <p>0.3</p>
+                <ul>
+                    <li>The service inspector will show a "used by" section which will display all components which uses the current selected component</li>
+                    <li>Support and view XML Services Components</li>
+                </ul>
+                <p>0.2</p>
+                <ul>
+                    <li>Correct parsing of @References</li>
+                    <li>Show module names</li>
+                    <li>Correct close icon</li>
+                    <li>Services/References are sorted by name</li>
+                    <li>Collapse/Expand all modules</li>
+                </ul>
+                </p>
             <p>
-            This plugin will add a new action to the Tools menu called "View Services...".
+            This plugin will add a new action to the Tools menu called "View Declarative Services...".
             The action will open a OSGi declarative services inspector view. The inspector will show all
             available components in the project and displays them in a ToolWindow. The user can double click a service
             to jump to the source. The provided services and consumed references will be shown for selected service.
@@ -30,9 +39,7 @@
                 Planned features are:
             </p>
             <ul>
-                <li>Support and view XML services components</li>
                 <li>Support and view standart OSGi annotated service components</li>
-                <li>Add a "used by" view to dispaly all service component which uses the current selected.</li>
                 </ul>
 
             <p>
@@ -47,7 +54,8 @@
 
     </change-notes>
 
-    <version>0.2</version>
+    <version>0.3</version>
+
     <vendor url="https://github.com/chilicat/" email="chilicat.dev@googlemail.com">chilicat</vendor>
 
     <depends>com.intellij.modules.lang</depends>
@@ -63,7 +71,7 @@
 
   <actions>
     <!-- Add your actions here -->
-      <action id="openServiceViewer" class="net.chilicat.ds.intellij.OpenServiceViewerAction" text="View Services...">
+      <action id="openServiceViewer" class="net.chilicat.ds.intellij.OpenServiceViewerAction" text="View Declarative Services...">
           <!--<add-to-group group-id="FindMenuGroup" anchor="last"/>-->
           <add-to-group group-id="ToolsMenu" anchor="last"/>
       </action>

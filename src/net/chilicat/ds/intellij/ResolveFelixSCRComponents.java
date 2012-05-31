@@ -20,37 +20,21 @@ import static net.chilicat.ds.intellij.FelixScrUtils.*;
 /**
  * @author dkuffner
  */
-public class ResolveFelixSCRComponents {
-    private final Project project;
+public class ResolveFelixSCRComponents extends AbstractResolveComponents {
 
     public ResolveFelixSCRComponents(Project project) {
-        this.project = project;
+        super(project);
     }
 
-    public void resolveAsync(final Callback callback) {
-        new Thread(new Runnable() {
-            public void run() {
-                callback.resolved(resolve());
-            }
-        }).start();
-    }
-
-    public List<ServiceComponent> resolve() {
-        return ApplicationManager.getApplication().runReadAction(new Computable<List<ServiceComponent>>() {
-            public List<ServiceComponent> compute() {
-                return resolveImpl();
-            }
-        });
-    }
-
-    private List<ServiceComponent> resolveImpl() {
+    @Override
+    protected List<ServiceComponent> resolveImpl() {
         final List<ServiceComponent> components = new ArrayList<ServiceComponent>();
 
-        for (final PsiJavaFile file : finalAllComponents(project)) {
+        for (final PsiJavaFile file : finalAllComponents(getProject())) {
             for (final PsiClass cls : file.getClasses()) {
 
                 if (isOuterClass(cls)) {
-                    Module module = getModuleForReference(project, cls);
+                    Module module = getModuleForReference(getProject(), cls);
 
                     if (module != null) {
 
@@ -153,7 +137,4 @@ public class ResolveFelixSCRComponents {
         }
     }
 
-    public static interface Callback {
-        void resolved(List<ServiceComponent> components);
-    }
 }
