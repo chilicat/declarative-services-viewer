@@ -9,7 +9,7 @@ The Viewer does support currently:
     All services which are annotated with Felix SCR annotations will be scanned and displayed.
 
 Screenshot:
-![Declarative Service Viewer](/path/to/img.jpg)
+![Declarative Service Viewer](http://github.com/chilicat/declarative-services-viewer/raw/master/images/ds-viewer.png)
 
 
 Planned Work:
