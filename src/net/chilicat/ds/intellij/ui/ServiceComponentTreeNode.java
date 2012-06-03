@@ -3,11 +3,7 @@ package net.chilicat.ds.intellij.ui;
 import com.intellij.openapi.fileEditor.FileEditorManager;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.vfs.VirtualFile;
-import com.intellij.psi.JavaPsiFacade;
-import com.intellij.psi.PsiClass;
-import com.intellij.psi.PsiFile;
-import com.intellij.psi.search.GlobalSearchScope;
-import com.intellij.util.PlatformIcons;
+import com.intellij.openapi.vfs.VirtualFileManager;
 import net.chilicat.ds.intellij.model.ServiceComponent;
 
 import javax.swing.*;
@@ -18,9 +14,25 @@ import javax.swing.*;
 public class ServiceComponentTreeNode extends DSTreeNode<ServiceComponent> {
 
     private String displayName = null;
+    private Icon icon = JAVA_ICON;
 
     public ServiceComponentTreeNode(Project project, ServiceComponent component) {
         super(project, component);
+        if (component.getFilePath().endsWith(".xml")) {
+            icon = XML_ICON;
+        } else {
+            icon = JAVA_ICON;
+        }
+    }
+
+    @Override
+    public void openClass() {
+        VirtualFile file = VirtualFileManager.getInstance().findFileByUrl(getUserObject().getFilePath());
+        if (file != null) {
+            FileEditorManager.getInstance(getProject()).openFile(file, true, true);
+        } else {
+            super.openClass();
+        }
     }
 
     @Override
@@ -56,7 +68,7 @@ public class ServiceComponentTreeNode extends DSTreeNode<ServiceComponent> {
 
     @Override
     public Icon getIcon() {
-        return PlatformIcons.CLASS_ICON;
+        return icon;
     }
 
 

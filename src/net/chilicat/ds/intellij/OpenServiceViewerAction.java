@@ -7,7 +7,9 @@ import com.intellij.openapi.project.Project;
 import com.intellij.openapi.wm.ToolWindow;
 import com.intellij.openapi.wm.ToolWindowAnchor;
 import com.intellij.openapi.wm.ToolWindowManager;
-import com.intellij.ui.content.*;
+import com.intellij.ui.content.Content;
+import com.intellij.ui.content.ContentManagerAdapter;
+import com.intellij.ui.content.ContentManagerEvent;
 import net.chilicat.ds.intellij.ui.ServiceTreePanel;
 
 /**
@@ -15,7 +17,7 @@ import net.chilicat.ds.intellij.ui.ServiceTreePanel;
  */
 public class OpenServiceViewerAction extends AnAction {
 
-    public final static String SERVICE_VIEWER_ID = "ds-viewer";
+    public final static String SERVICE_VIEWER_ID = "Declarative Services";
 
     public void actionPerformed(AnActionEvent e) {
 
@@ -48,10 +50,16 @@ public class OpenServiceViewerAction extends AnAction {
             });
             tree.setToolWindow(toolWindow);
         } else {
-            tree = (ServiceTreePanel)toolWindow.getContentManager().getContent(0).getComponent();
+            tree = (ServiceTreePanel) toolWindow.getContentManager().getContent(0).getComponent();
         }
 
-        tree.resolveContent(project);
+        final ServiceTreePanel finalTree = tree;
+        toolWindow.activate(new Runnable() {
+            public void run() {
+                finalTree.resolveContent(project);
+            }
+        });
+
     }
 
 }

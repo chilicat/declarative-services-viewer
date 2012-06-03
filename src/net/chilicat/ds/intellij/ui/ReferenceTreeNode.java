@@ -1,9 +1,7 @@
 package net.chilicat.ds.intellij.ui;
 
 import com.intellij.openapi.project.Project;
-import com.intellij.util.PlatformIcons;
 import net.chilicat.ds.intellij.model.Reference;
-import net.chilicat.ds.intellij.model.ServiceComponent;
 
 import javax.swing.*;
 
@@ -25,7 +23,7 @@ public class ReferenceTreeNode extends DSTreeNode<Reference> {
 
     @Override
     public Icon getIcon() {
-        return PlatformIcons.CLASS_ICON;
+        return JAVA_ICON;
     }
 
     @Override

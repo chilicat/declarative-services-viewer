@@ -1,12 +1,7 @@
 package net.chilicat.ds.intellij.ui;
 
-import com.intellij.openapi.fileEditor.FileEditorManager;
 import com.intellij.openapi.project.Project;
-import com.intellij.openapi.vfs.VirtualFile;
-import com.intellij.psi.JavaPsiFacade;
-import com.intellij.psi.PsiClass;
-import com.intellij.psi.PsiFile;
-import com.intellij.psi.search.GlobalSearchScope;
+import com.intellij.openapi.util.IconLoader;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -22,13 +17,16 @@ public abstract class DSTreeNode<T> extends DefaultMutableTreeNode {
 
     private final Project project;
 
+    public final static Icon JAVA_ICON = IconLoader.getIcon("/fileTypes/java.png");
+    public final static Icon XML_ICON = IconLoader.getIcon("/fileTypes/xml.png");
+
     protected DSTreeNode(@NotNull Project project, @NotNull T o) {
         super(o);
         this.project = project;
     }
 
     public void sort(@NotNull Comparator comparator) {
-        if(children != null) {
+        if (children != null) {
             //noinspection unchecked
             Collections.sort(children, comparator);
         }
@@ -56,20 +54,8 @@ public abstract class DSTreeNode<T> extends DefaultMutableTreeNode {
     @Nullable
     public abstract String getClassName();
 
-    public void open() {
-        String className = getClassName();
-        if(className != null) {
-            final JavaPsiFacade psiFacade = JavaPsiFacade.getInstance(project);
-            final PsiClass implementationClass = psiFacade.findClass(className, GlobalSearchScope.projectScope(project));
-
-            if (implementationClass != null) {
-                PsiFile containingFile = implementationClass.getContainingFile();
-                VirtualFile file = containingFile.getVirtualFile();
-                if (file != null) {
-                    FileEditorManager.getInstance(project).openFile(file, true, true);
-                }
-            }
-        }
+    public void openClass() {
+        UiUtils.openClass(getProject(), getClassName());
     }
 
     @Override

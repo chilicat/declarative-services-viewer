@@ -1,7 +1,6 @@
 package net.chilicat.ds.intellij.ui;
 
 import com.intellij.openapi.project.Project;
-import com.intellij.util.PlatformIcons;
 
 import javax.swing.*;
 
@@ -10,8 +9,8 @@ import javax.swing.*;
  */
 public class SimpleDSTreeNode extends DSTreeNode<String> {
 
-    private Icon icon = PlatformIcons.CLASS_ICON;
-    private boolean classProvider;
+    private Icon icon = JAVA_ICON;
+    private boolean classProvider = true;
 
     public SimpleDSTreeNode(Project project, String value) {
         super(project, value);
@@ -36,7 +35,7 @@ public class SimpleDSTreeNode extends DSTreeNode<String> {
 
     @Override
     public String getClassName() {
-        if(!isClassProvider()) {
+        if (!isClassProvider()) {
             return null;
         }
         return getUserObject();

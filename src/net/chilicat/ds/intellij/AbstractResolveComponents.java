@@ -5,7 +5,10 @@ import com.intellij.openapi.project.Project;
 import com.intellij.openapi.util.Computable;
 import net.chilicat.ds.intellij.model.ServiceComponent;
 
+import java.util.Collections;
 import java.util.List;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  * @author dkuffner
@@ -31,11 +34,16 @@ public abstract class AbstractResolveComponents {
     }
 
     public List<ServiceComponent> resolve() {
-        return ApplicationManager.getApplication().runReadAction(new Computable<List<ServiceComponent>>() {
-            public List<ServiceComponent> compute() {
-                return resolveImpl();
-            }
-        });
+        try {
+            return ApplicationManager.getApplication().runReadAction(new Computable<List<ServiceComponent>>() {
+                public List<ServiceComponent> compute() {
+                    return resolveImpl();
+                }
+            });
+        } catch (RuntimeException ex) {
+            Logger.getLogger(getClass().getName()).log(Level.SEVERE, "", ex);
+            return Collections.emptyList();
+        }
     }
 
     protected abstract List<ServiceComponent> resolveImpl();

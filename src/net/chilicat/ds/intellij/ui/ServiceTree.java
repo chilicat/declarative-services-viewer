@@ -2,8 +2,7 @@ package net.chilicat.ds.intellij.ui;
 
 import javax.swing.*;
 import javax.swing.tree.TreePath;
-import java.awt.event.MouseAdapter;
-import java.awt.event.MouseEvent;
+import java.awt.event.*;
 
 import static javax.swing.SwingUtilities.isLeftMouseButton;
 import static net.chilicat.ds.intellij.ui.UiUtils.asDSTreeNode;
@@ -16,7 +15,11 @@ class ServiceTree extends JTree {
     public ServiceTree() {
         setRootVisible(false);
         setCellRenderer(new ServiceTreeRenderer());
-        addMouseListener(new OpenMouseHandler());
+
+        OpenHandler openHandler = new OpenHandler();
+
+        addMouseListener(openHandler);
+        registerKeyboardAction(openHandler, KeyStroke.getKeyStroke(KeyEvent.VK_ENTER, 0), WHEN_FOCUSED);
     }
 
     @Override
@@ -31,15 +34,23 @@ class ServiceTree extends JTree {
         return null;
     }
 
-    private class OpenMouseHandler extends MouseAdapter {
+    private class OpenHandler extends MouseAdapter implements ActionListener {
         @Override
         public void mouseClicked(MouseEvent mouseEvent) {
             if (mouseEvent.getClickCount() == 2 && isLeftMouseButton(mouseEvent)) {
-                DSTreeNode<?> comp = asDSTreeNode(getSelectionModel().getLeadSelectionPath());
-                if (comp != null) {
-                    comp.open();
-                }
+                openSelection();
             }
+        }
+
+        public void actionPerformed(ActionEvent actionEvent) {
+            openSelection();
+        }
+    }
+
+    private void openSelection() {
+        DSTreeNode<?> comp = asDSTreeNode(getSelectionModel().getLeadSelectionPath());
+        if (comp != null) {
+            comp.openClass();
         }
     }
 }

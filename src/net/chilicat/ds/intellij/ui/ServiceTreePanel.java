@@ -2,10 +2,7 @@ package net.chilicat.ds.intellij.ui;
 
 import com.intellij.ide.actions.CloseTabToolbarAction;
 import com.intellij.openapi.Disposable;
-import com.intellij.openapi.actionSystem.ActionManager;
-import com.intellij.openapi.actionSystem.AnAction;
-import com.intellij.openapi.actionSystem.AnActionEvent;
-import com.intellij.openapi.actionSystem.DefaultActionGroup;
+import com.intellij.openapi.actionSystem.*;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.SimpleToolWindowPanel;
 import com.intellij.openapi.ui.Splitter;
@@ -16,7 +13,6 @@ import com.intellij.ui.ScrollPaneFactory;
 import com.intellij.ui.treeStructure.actions.CollapseAllAction;
 import com.intellij.ui.treeStructure.actions.ExpandAllAction;
 import com.intellij.util.PlatformIcons;
-import net.chilicat.ds.intellij.AbstractResolveComponents;
 import net.chilicat.ds.intellij.OpenServiceViewerAction;
 import net.chilicat.ds.intellij.ResolveFelixSCRComponents;
 import net.chilicat.ds.intellij.ResolveXMLComponents;
@@ -50,6 +46,8 @@ public class ServiceTreePanel extends SimpleToolWindowPanel {
     private ToolWindow toolWindow;
 
     private java.util.List<ServiceComponent> components;
+
+    private boolean showModules = true;
 
     public ServiceTreePanel() {
         super(false, true);
@@ -93,7 +91,7 @@ public class ServiceTreePanel extends SimpleToolWindowPanel {
         } else {
             ServiceComponent userObject = scNode.getUserObject();
 
-            SimpleDSTreeNode referenceRoot  = new SimpleDSTreeNode(scNode.getProject(), "References");
+            SimpleDSTreeNode referenceRoot = new SimpleDSTreeNode(scNode.getProject(), "References");
             referenceRoot.setIcon(IconLoader.getIcon("/vcs/arrow_left.png"));
             for (Reference ref : userObject.getReferences()) {
                 referenceRoot.add(new ReferenceTreeNode(scNode.getProject(), ref));
@@ -111,31 +109,31 @@ public class ServiceTreePanel extends SimpleToolWindowPanel {
 
             SimpleDSTreeNode usedByRoot = new SimpleDSTreeNode(scNode.getProject(), "Used By");
             usedByRoot.setIcon(IconLoader.getIcon("/actions/previousOccurence.png"));
-            for(ServiceComponent comp : resolveUsedBy(userObject)) {
+            for (ServiceComponent comp : resolveUsedBy(userObject)) {
                 usedByRoot.add(new ServiceComponentTreeNode(project, comp));
             }
             usedByRoot.sort(new DisplayNameSorter());
 
             DefaultMutableTreeNode root = new DefaultMutableTreeNode();
-            if(serviceRoot.getChildCount() > 0) {
+            if (serviceRoot.getChildCount() > 0) {
                 root.add(serviceRoot);
             }
-            
-            if(referenceRoot.getChildCount() > 0) {
+
+            if (referenceRoot.getChildCount() > 0) {
                 root.add(referenceRoot);
             }
 
-            if(usedByRoot.getChildCount() > 0) {
+            if (usedByRoot.getChildCount() > 0) {
                 root.add(usedByRoot);
             }
 
-            if(root.getChildCount() == 0) {
+            if (root.getChildCount() == 0) {
                 root.add(new DefaultMutableTreeNode("No services or references provided"));
             }
 
             refAndServicesTree.setModel(new DefaultTreeModel(root));
 
-            for(int i=0; i<refAndServicesTree.getRowCount(); i++) {
+            for (int i = 0; i < refAndServicesTree.getRowCount(); i++) {
                 refAndServicesTree.expandRow(i);
             }
         }
@@ -178,6 +176,20 @@ public class ServiceTreePanel extends SimpleToolWindowPanel {
         leftGroup.add(new ExpandAllAction(mainTree));
         leftGroup.add(new CollapseAllAction(mainTree));
 
+        leftGroup.add(new ToggleAction("Show Modules", "Show Modules", IconLoader.getIcon("/objectBrowser/showModules.png")) {
+            @Override
+            public boolean isSelected(AnActionEvent anActionEvent) {
+                return showModules;
+            }
+
+            @Override
+            public void setSelected(AnActionEvent anActionEvent, boolean b) {
+                if (showModules != b) {
+                    showModules = b;
+                    resolveContent(project);
+                }
+            }
+        });
 
         leftGroup.add(new CloseTabToolbarAction() {
             public void actionPerformed(AnActionEvent e) {
@@ -194,7 +206,12 @@ public class ServiceTreePanel extends SimpleToolWindowPanel {
 
 
     public void resolveContent(@Nullable final Project project) {
-        final DefaultTreeModel model = new DefaultTreeModel(new DefaultMutableTreeNode());
+        DefaultMutableTreeNode loadingRoot = new DefaultMutableTreeNode();
+        loadingRoot.add(new DefaultMutableTreeNode("Loading..."));
+        final DefaultTreeModel model = new DefaultTreeModel(loadingRoot);
+
+        mainTree.setModel(model);
+        this.project = project;
 
         if (project != null) {
             ResolveFelixSCRComponents resolver = new ResolveFelixSCRComponents(project);
@@ -204,9 +221,6 @@ public class ServiceTreePanel extends SimpleToolWindowPanel {
             resolver.resolveAsync(callback);
             resolveXMLComponents.resolveAsync(callback);
         }
-
-        mainTree.setModel(model);
-        this.project = project;
     }
 
 
@@ -224,7 +238,11 @@ public class ServiceTreePanel extends SimpleToolWindowPanel {
 
     private static class DisplayNameSorter implements Comparator<DSTreeNode> {
         public int compare(DSTreeNode o, DSTreeNode o1) {
-            return o.getDisplayValue().compareTo(o1.getDisplayValue());
+            String name1 = o.getDisplayValue();
+            String name2 = o1.getDisplayValue();
+            name1 = name1 == null ? "" : name1;
+            name2 = name2 == null ? "" : name2;
+            return name1.compareTo(name2);
         }
     }
 
@@ -247,14 +265,15 @@ public class ServiceTreePanel extends SimpleToolWindowPanel {
         }
 
         AtomicInteger count = new AtomicInteger(0);
+
         public void resolved(final List<ServiceComponent> components) {
             int count = this.count.incrementAndGet();
             comps.addAll(components);
 
-            if(count == 2) {
+            if (count == 2) {
                 final DSTreeNode root = new SimpleDSTreeNode(project, "ROOT");
 
-                if(false) {
+                if (!showModules) {
                     for (ServiceComponent comp : comps) {
                         root.add(new ServiceComponentTreeNode(project, comp));
                     }
@@ -263,16 +282,16 @@ public class ServiceTreePanel extends SimpleToolWindowPanel {
                     Icon moduleIcon = IconLoader.getIcon("/objectBrowser/showModules.png");
                     for (ServiceComponent comp : comps) {
                         SimpleDSTreeNode r = modules.get(comp.getModuleName());
-                        if(r == null) {
+                        if (r == null) {
                             r = new SimpleDSTreeNode(project, comp.getModuleName());
                             r.setClassProvider(false);
-                            r.setIcon(moduleIcon); // PlatformIcons.PROJECT_ICON
+                            r.setIcon(moduleIcon);
                             modules.put(comp.getModuleName(), r);
                         }
                         r.add(new ServiceComponentTreeNode(project, comp));
                     }
 
-                    for(SimpleDSTreeNode r : modules.values()) {
+                    for (SimpleDSTreeNode r : modules.values()) {
                         r.sort(new DisplayNameSorter());
                         root.add(r);
                     }
@@ -285,7 +304,7 @@ public class ServiceTreePanel extends SimpleToolWindowPanel {
                         ServiceTreePanel.this.components = new ArrayList<ServiceComponent>(comps);
                         model.setRoot(root);
 
-                        for(int i=0; i<mainTree.getRowCount(); i++) {
+                        for (int i = 0; i < mainTree.getRowCount(); i++) {
                             mainTree.expandRow(i);
                         }
                     }
