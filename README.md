@@ -1,4 +1,4 @@
-# A OSGi Declarative Service Viewer
+# A OSGi Declarative Service Viewer for IntelliJ
 The plugin will add a action called "View Declarative Services..." to the Tools menu. The action will open a new ToolWindow called "Declarative Services"
 on the bottom. The ToolWindow will the project for Service Components.
 
